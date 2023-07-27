@@ -324,6 +324,8 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 	if train:
 		# run through all data batches
 		for i, data in enumerate(dataloader):
+			if args.subset > 0 and  i == args.subset:
+				break
 			# per batch
 			features = data[0]['features']
 			groups = data[0]['groups'] if 'groups' in data[0] else None
@@ -369,6 +371,10 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 		# disable autograd if eval
 		with torch.no_grad():
 			for i, data in enumerate(dataloader):
+
+				if args.subset > 0 and  i == args.subset:
+					break
+
 				# per batch
 				# per batch
 				features = data[0]['features']
@@ -711,13 +717,14 @@ def run():
 
 	# set up input data
 	train_inputs = Data(args.data_name, "training", args.batch_size, nr_iters, attribute_list)
-	train_ds = Subset(train_inputs, [0,1,2,3])
-
 	valid_inputs = Data(args.data_name, "validation", args.batch_size, nr_iters, attribute_list)
-	valid_ds = Subset(valid_inputs, [0,1,2,3])
 
-	train_dataloader = DataLoader(dataset=train_ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
-	valid_dataloader = DataLoader(dataset=valid_ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
+	# if args.subset > 0:
+	# 	train_inputs = Subset(train_inputs, list(range(args.subset)))
+	# 	valid_inputs = Subset(valid_inputs, list(range(args.subset)))
+
+	train_dataloader = DataLoader(dataset=train_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
+	valid_dataloader = DataLoader(dataset=valid_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
 
 	# get dimensions of data
 	input_shape = train_inputs.data["features"].shape
@@ -805,6 +812,7 @@ if __name__ == '__main__':
 	parser.add_argument('--inner_hidden_size', type=int, default=250)
 	parser.add_argument('--saved_model', type=str, default='')
 	parser.add_argument('--rollout_steps', type=int, default=10)
+	parser.add_argument('--subset', type=int, default=0)
 	parser.add_argument('--usage', '-u', choices=['train', 'eval', 'rollout'], required=True)
 
 	### for testing purpose
@@ -829,3 +837,6 @@ if __name__ == '__main__':
 		rollout_from_file()
 	else:
 		raise ValueError
+
+
+# Command I use: time python main.py -u train --max_epoch 2 --nr_steps 2 --subset 2
