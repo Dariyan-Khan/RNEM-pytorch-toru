@@ -8,10 +8,12 @@ def reshape(shape, x):
 	batch_size = x.size()[0]
 
 	if shape == -1:
-		return x.view(batch_size, -1)
+		#return x.view(batch_size, -1)
+		return x.reshape(batch_size, -1)
 	else:
 		reshape_size = (batch_size,) + shape
-		return x.view(reshape_size)
+		# return x.view(reshape_size)
+		return x.reshape(reshape_size)
 
 
 class InputWrapper(nn.Module):
@@ -331,6 +333,7 @@ class InnerRNN(nn.Module):
 	def forward(self, x, state):
 		x, state = self.encoder(x, state)
 		x, state = self.recurrent(x, state)
+		#import ipdb;ipdb.set_trace()
 		x_out, state_out = self.decoder(x, state)
 
 		# delete used variables to save memory space

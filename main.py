@@ -8,6 +8,7 @@ import torch.distributions as dist
 import torch.nn as nn
 import torch.utils.data
 from torch.utils.data import DataLoader
+import h5py
 
 import utils
 from data import Data, collate
@@ -205,7 +206,7 @@ def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=Non
 	prior = compute_bernoulli_prior()
 
 	# output
-	hidden_state = nem_model.module.init_state(dtype=torch.float32)
+	hidden_state = nem_model.init_state(dtype=torch.float32)
 	# hidden_state = (nem_model.h, nem_model.pred, nem_model.gamma)
 	outputs = [hidden_state]
 
@@ -322,7 +323,12 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 
 	if train:
 		# run through all data batches
-		for i, data in enumerate(dataloader):
+		i = -1
+		a = iter(dataloader)
+		while True:
+			data = next(iter(dataloader))
+			i +=1
+		# for i, data in enumerate(dataloader):
 			# per batch
 			features = data[0]['features']
 			groups = data[0]['groups'] if 'groups' in data[0] else None
@@ -480,6 +486,21 @@ def create_rollout_plots(name, outputs, idx):
 
 ### Main functions
 
+class H5Dataset(torch.utils.data.Dataset):
+    def __init__(self, path):
+        self.file_path = path
+        self.dataset = None
+        with h5py.File(self.file_path, 'r') as file:
+            self.dataset_len = len(file["dataset"])
+
+    def __getitem__(self, index):
+        if self.dataset is None:
+            self.dataset = h5py.File(self.file_path, 'r')["dataset"]
+        return self.dataset[index]
+
+    def __len__(self):
+        return self.dataset_len
+
 
 def rollout_from_file():
 	# set up input data
@@ -488,7 +509,9 @@ def rollout_from_file():
 
 	# set up data
 	inputs = Data(args.data_name, "test", args.batch_size, nr_iters, attribute_list)
-	input_dataloader = DataLoader(dataset=inputs, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate)
+	input_dataloader = DataLoader(dataset=inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
+
+
 
 	# get dimensions of data
 	input_shape = inputs.data["features"].shape
@@ -694,8 +717,8 @@ def run():
 	# set up input data
 	train_inputs = Data(args.data_name, "training", args.batch_size, nr_iters, attribute_list)
 	valid_inputs = Data(args.data_name, "validation", args.batch_size, nr_iters, attribute_list)
-	train_dataloader = DataLoader(dataset=train_inputs, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate)
-	valid_dataloader = DataLoader(dataset=valid_inputs, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate)
+	train_dataloader = DataLoader(dataset=train_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
+	valid_dataloader = DataLoader(dataset=valid_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
 
 	# get dimensions of data
 	input_shape = train_inputs.data["features"].shape
@@ -720,7 +743,7 @@ def run():
 		train_model.load_state_dict(torch.load(saved_model_path))
 
 	# set up optimizer
-	optimizer = torch.optim.Adam(list(train_model.parameters()) + list(train_model.module.inner_rnn.parameters()), lr=args.lr)
+	optimizer = torch.optim.Adam(list(train_model.parameters()) + list(train_model.inner_rnn.parameters()), lr=args.lr)
 
 	# training
 	best_valid_loss = np.inf
