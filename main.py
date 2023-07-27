@@ -323,12 +323,7 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 
 	if train:
 		# run through all data batches
-		i = -1
-		a = iter(dataloader)
-		while True:
-			data = next(iter(dataloader))
-			i +=1
-		# for i, data in enumerate(dataloader):
+		for i, data in enumerate(dataloader):
 			# per batch
 			features = data[0]['features']
 			groups = data[0]['groups'] if 'groups' in data[0] else None
