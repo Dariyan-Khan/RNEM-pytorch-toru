@@ -7,7 +7,7 @@ import torch
 import torch.distributions as dist
 import torch.nn as nn
 import torch.utils.data
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import h5py
 
 import utils
@@ -711,9 +711,13 @@ def run():
 
 	# set up input data
 	train_inputs = Data(args.data_name, "training", args.batch_size, nr_iters, attribute_list)
+	train_ds = Subset(train_inputs, [0,1,2,3])
+
 	valid_inputs = Data(args.data_name, "validation", args.batch_size, nr_iters, attribute_list)
-	train_dataloader = DataLoader(dataset=train_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
-	valid_dataloader = DataLoader(dataset=valid_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
+	valid_ds = Subset(valid_inputs, [0,1,2,3])
+
+	train_dataloader = DataLoader(dataset=train_ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
+	valid_dataloader = DataLoader(dataset=valid_ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
 
 	# get dimensions of data
 	input_shape = train_inputs.data["features"].shape
