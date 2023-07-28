@@ -26,6 +26,8 @@ args = None
 
 
 # log bci
+
+
 def binomial_cross_entropy_loss(y, t):
 	clipped_y = torch.clamp(y, 1e-6, 1. - 1.e-6)
 	res = -(t * torch.log(clipped_y) + (1. - t) * torch.log(1. - clipped_y))
@@ -42,6 +44,35 @@ def kl_loss_bernoulli(p1, p2):
 		return res.cuda()
 	else:
 		return res
+
+
+def mvn_squared_error_loss(mu, sigma, x):
+	"""Loss function for multivatiate gaussian"""
+	det_sig = torch.linalg.det(sigma)
+	inv_sig = torch.clamp(torch.linalg.inv(sigma), 1e-6, 1e6)
+	mean_delta = x - mu
+	mean_delta_t = torch.t(mean_delta)
+	res = -0.5 * torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + -0.5 * torch.matmul(torch.matmul(mean_delta_t, inv_sig), mean_delta)
+
+	if use_gpu:
+		return res.cuda()
+	else:
+		return res
+
+def kl_loss_mvn(mu_1, sigma_1, mu_2, sigma_2):
+	det_sig_1 = torch.linalg.det(sigma_1)
+	det_sig_2 = torch.linalg.det(sigma_2)
+	inv_sig_2 = torch.clamp(torch.linalg.inv(sigma_2), 1e-6, 1e6)
+	d = sigma_2.shape[-1]
+	mu_diff = mu_1 - mu_2
+	mu_diff_t = torch.t(mu_diff)
+	res = 0.5 * (torch.log(det_sig_1 / det_sig_2) + torch.trace(torch.matmul(inv_sig_2, sigma_1)) + torch.matmul(torch.matmul(mu_diff_t, inv_sig_2), mu_diff) - d)
+	
+	if use_gpu:
+		return res.cuda()
+	else:
+		return res
+
 
 
 def add_noise(data, noise_type='bitflip', noise_prob=0.2):
