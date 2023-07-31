@@ -55,6 +55,10 @@ class Data(Dataset):
 		self.hf = h5py.File(file_path, 'r')
 
 		# shape of data is (T, B, K, W, H, C)
+		# print(f"hehehehe: {self.hf['training']['features']}")
+
+		# assert False
+
 		self.data = {
 			attr: self.hf[self.phase][attr] for attr in attributes
 		}
@@ -67,11 +71,23 @@ class Data(Dataset):
 		d = {dn: torch.from_numpy(
 			ds[:self.sequence_length, self.batch_size*idx:self.batch_size*(idx+1)][:, :, None].astype(np.float32))
 			for dn, ds in self.data.items()}
+		
+		# for dn, ds in self.data.items():
+		# 	a = ds[0]
+		# 	print(type(a))
+		# 	print(a.shape)
+
+		
+		# 	assert False
 		return d
 
 	def __len__(self):
 		# number of batches
-		# return self.limit // self.batch_size - 1
+		# return self.limit // self.batch_size - 1 .  #Not sure about  this why is this fixed to 5800
+
+
+		# print(f"limit: {self.limit}")
+		# print(f"batch size: {self.batch_size}")
 		return 5800
 
 

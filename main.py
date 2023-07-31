@@ -355,6 +355,11 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 	if train:
 		# run through all data batches
 		for i, data in enumerate(dataloader):
+
+			print(f"data: {data[0].keys()}")
+
+			# assert False
+
 			if args.subset > 0 and  i == args.subset:
 				break
 			# per batch
@@ -750,6 +755,10 @@ def run():
 	train_inputs = Data(args.data_name, "training", args.batch_size, nr_iters, attribute_list)
 	valid_inputs = Data(args.data_name, "validation", args.batch_size, nr_iters, attribute_list)
 
+	print(f"train shape: {train_inputs[0]['features'].shape}")
+
+	#print(len(train_inputs))
+
 	# if args.subset > 0:
 	# 	train_inputs = Subset(train_inputs, list(range(args.subset)))
 	# 	valid_inputs = Subset(valid_inputs, list(range(args.subset)))
@@ -871,3 +880,5 @@ if __name__ == '__main__':
 
 
 # Command I use: time python main.py -u train --max_epoch 2 --nr_steps 2 --subset 2
+
+# python main.py -u train --max_epoch 2 --nr_steps 2 --batch_size 2 --data_name torch_train_obs_10

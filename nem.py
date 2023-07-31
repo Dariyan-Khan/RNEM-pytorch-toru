@@ -92,7 +92,22 @@ class NEM(nn.Module):
 		batch_size = d_size[0]
 		K = d_size[1]
 		M = torch.tensor(self.input_size).prod()
-		reshaped_masked_deltas = masked_deltas.view(batch_size * K, M)
+		
+		
+
+		print(f"masked_deltas: {masked_deltas.shape}")
+
+		print(f"h_old {h_old.shape}")
+
+		print(f"M: {M}")
+
+		
+
+		reshaped_masked_deltas = masked_deltas.view(batch_size * K, M) # Masked deltas get collapsed here, and then when passed hrough encoder they change shape
+
+		print(f"reshaped masked_deltas: {reshaped_masked_deltas.shape}")
+
+		# assert False
 
 		preds, h_new = self.inner_rnn.forward(reshaped_masked_deltas, h_old)
 
@@ -133,6 +148,17 @@ class NEM(nn.Module):
 
 		# mask with gamma
 		masked_deltas = self.mask_rnn_inputs(deltas, gamma_old)
+
+
+		# at this point masked_delta is still 64x5x64x64x1
+
+		print(f"masked deltas shape: {masked_deltas.shape}") 
+
+		# assert False   
+
+		print(f"h_old shape: {h_old.shape}") 
+
+		#assert False
 
 		# compute new predictions
 		preds, h_new = self.run_inner_rnn(masked_deltas, h_old)
