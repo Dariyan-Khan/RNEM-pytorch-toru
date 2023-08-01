@@ -109,7 +109,17 @@ class NEM(nn.Module):
 
 		# assert False
 
+		print(f"reshaped masked deltas shape {reshaped_masked_deltas.shape}")
+
+		print(f"h_old shape {h_old.shape}")
+
 		preds, h_new = self.inner_rnn.forward(reshaped_masked_deltas, h_old)
+
+		print(f"preds shape {preds.shape}")
+
+		print(f"h_new shape {h_new.shape}")
+
+		assert False
 
 		return preds.view(d_size), h_new
 

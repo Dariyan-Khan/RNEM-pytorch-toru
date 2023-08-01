@@ -8,9 +8,11 @@ def reshape(shape, x):
 	batch_size = x.size()[0]
 
 	if shape == -1:
+		#return x.view(batch_size, -1)
 		return x.reshape(batch_size, -1)
 	else:
 		reshape_size = (batch_size,) + shape
+		# return x.view(reshape_size)
 		return x.reshape(reshape_size)
 
 
@@ -18,10 +20,18 @@ class InputWrapper(nn.Module):
 	def __init__(self, input_size, output_size=None, fc_output_size=None):
 		super(InputWrapper, self).__init__()
 
+		self.fc_output_size = fc_output_size
+		# assert False
+
+		self.inp_size = input_size[-1]
+
+
 		if fc_output_size is None:
-			self.main_layer = nn.Conv2d(input_size[-1], output_size, kernel_size=4, stride=2, padding=1)
+			self.main_layer = nn.Conv2d(input_size[-1], output_size, kernel_size=2, stride=2, padding=1) #kernel_size=4
 		else:
-			self.main_layer = nn.Linear(input_size[-1], fc_output_size)
+			# self.main_layer = nn.Linear(input_size[-1], fc_output_size)
+			self.main_layer = nn.Linear(384, fc_output_size)
+
 
 		self.act = nn.ELU()
 
@@ -32,7 +42,15 @@ class InputWrapper(nn.Module):
 		# reshape x from (B, W, H, C) to (B, C, W, H)
 		reshape_dim = tuple([0] + [i for i in range(len(x.size()) - 1, 0, -1)])
 
-		x = self.main_layer(x.permute(reshape_dim))
+		x = x.permute(reshape_dim)
+
+		print(f"input size: {self.inp_size}")
+		print(f"output size: {self.fc_output_size}")
+
+		
+
+		# print(f"x shape: {x.shape}")
+		x = self.main_layer(x)
 
 		# since output size for Conv2D layer is (B, C, H, W),
 		# reshape output back to (B, W, H, C)
@@ -54,6 +72,10 @@ class OutputWrapper(nn.Module):
 		super(OutputWrapper, self).__init__()
 
 		self.fc_output_size = fc_output_size
+
+		print(f"input size: {input_size}")
+
+		# assert False
 
 		if fc_output_size is None:
 			self.main_layer = nn.Conv2d(input_size[-1], output_size, kernel_size=4, stride=2, padding=1)
@@ -251,6 +273,7 @@ class EncoderLayer(nn.Module):
 		self.conv2 = InputWrapper((batch_size * k, W // 2, H // 2, 16), output_size=32).to(device)
 		self.conv3 = InputWrapper((batch_size * k, W // 4, H // 4, 32), output_size=64).to(device)
 		self.fc1 = InputWrapper((batch_size * k, W * H), fc_output_size=512).to(device)
+		self.fc1 = InputWrapper((batch_size * k, W * H), fc_output_size=512).to(device)
 
 	def forward(self, x, state):
 		# reshape the input to (64, 64, 1)
@@ -285,6 +308,9 @@ class DecoderLayer(nn.Module):
 	def forward(self, x, state):
 		x, state = self.fc1(x, state)
 		x, state = self.fc2(x, state)
+		print(f"x shape {x.shape}")
+
+
 		x = reshape((8, 8, 64), x)
 		x, state = self.r_conv1(x, state)
 		x, state = self.r_conv2(x, state)
@@ -316,6 +342,7 @@ class InnerRNN(nn.Module):
 		self.k = k
 		self.hidden_size = hidden_size
 		self.device = device
+		self.input_size = input_size
 
 		self.encoder = EncoderLayer(batch_size, k, input_size, device=device)
 		self.recurrent = RecurrentLayer(k, hidden_size, device=device)
@@ -329,10 +356,23 @@ class InnerRNN(nn.Module):
 			return torch.autograd.Variable(torch.zeros(self.batch_size * self.k, self.hidden_size)).cuda()
 
 	def forward(self, x, state):
+
+		print(f"({self.batch_size}, {self.k}, {self.hidden_size}, {self.input_size})")
+
+		print(f"x shape: {x.shape}")
+		#assert False 
 		x, state = self.encoder(x, state)
 		x, state = self.recurrent(x, state)
+		#import ipdb;ipdb.set_trace()
 		x_out, state_out = self.decoder(x, state)
+
+		
+
 
 		# delete used variables to save memory space
 		del x, state
 		return x_out, state_out
+
+
+# class VanillaRNN(nn.module):
+
