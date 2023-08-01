@@ -95,31 +95,30 @@ class NEM(nn.Module):
 		
 		
 
-		print(f"masked_deltas: {masked_deltas.shape}")
+		# print(f"masked_deltas: {masked_deltas.shape}")
 
-		print(f"h_old {h_old.shape}")
+		# print(f"h_old {h_old.shape}")
 
-		print(f"M: {M}")
+		# print(f"M: {M}")
 
 		
 
 		reshaped_masked_deltas = masked_deltas.view(batch_size * K, M) # Masked deltas get collapsed here, and then when passed hrough encoder they change shape
 
-		print(f"reshaped masked_deltas: {reshaped_masked_deltas.shape}")
+		# print(f"reshaped masked_deltas: {reshaped_masked_deltas.shape}")
 
 		# assert False
 
-		print(f"reshaped masked deltas shape {reshaped_masked_deltas.shape}")
+		# print(f"reshaped masked deltas shape {reshaped_masked_deltas.shape}")
 
-		print(f"h_old shape {h_old.shape}")
+		# print(f"h_old shape {h_old.shape}")
 
 		preds, h_new = self.inner_rnn.forward(reshaped_masked_deltas, h_old)
 
-		print(f"preds shape {preds.shape}")
+		# print(f"preds shape {preds.shape}")
 
-		print(f"h_new shape {h_new.shape}")
+		# print(f"h_new shape {h_new.shape}")
 
-		assert False
 
 		return preds.view(d_size), h_new
 
@@ -162,11 +161,11 @@ class NEM(nn.Module):
 
 		# at this point masked_delta is still 64x5x64x64x1
 
-		print(f"masked deltas shape: {masked_deltas.shape}") 
+		# print(f"masked deltas shape: {masked_deltas.shape}") 
 
 		# assert False   
 
-		print(f"h_old shape: {h_old.shape}") 
+		# print(f"h_old shape: {h_old.shape}") 
 
 		#assert False
 

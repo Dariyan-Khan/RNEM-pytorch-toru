@@ -125,7 +125,16 @@ def compute_outer_loss(mu, gamma, target, prior, collision):
 	# intra_loss = intra_criterion(mu, target, use_gpu=use_gpu)
 	# inter_loss = inter_criterion(prior, mu, use_gpu=use_gpu)
 
+	
+
 	intra_loss = binomial_cross_entropy_loss(mu, target)
+	print(f"==>> target.shape: {target.shape}")
+	print(f"==>> mu.shape: {mu.shape}")
+	assert False
+
+
+
+
 	inter_loss = kl_loss_bernoulli(prior, mu)
 
 	batch_size = target.size()[0]

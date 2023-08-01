@@ -8,7 +8,7 @@ def reshape(shape, x):
 	batch_size = x.size()[0]
 
 	if shape == -1:
-		#return x.view(batch_size, -1)
+		# return x.view(batch_size, -1)
 		return x.reshape(batch_size, -1)
 	else:
 		reshape_size = (batch_size,) + shape
