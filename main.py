@@ -8,6 +8,7 @@ import torch.distributions as dist
 import torch.nn as nn
 import torch.utils.data
 from torch.utils.data import DataLoader, Subset
+from torch.linalg import vector_norm
 import h5py
 
 import utils
@@ -46,28 +47,36 @@ def kl_loss_bernoulli(p1, p2):
 		return res
 
 
-def mvn_squared_error_loss(mu, sigma, x):
-	"""Loss function for multivatiate gaussian"""
-	det_sig = torch.linalg.det(sigma)
-	inv_sig = torch.clamp(torch.linalg.inv(sigma), 1e-6, 1e6)
+def mvn_squared_error_loss(mu, x, sigma=1.0, sig_size=34.0):
+	"""Loss function for multivatiate gaussian in the homoskedastic case"""
+
+
+
+	det_sig =  torch.tensor(sigma**sig_size) #torch.linalg.det(sigma)
+	#inv_sig = torch.clamp(torch.linalg.inv(sigma), 1e-6, 1e6)
 	mean_delta = x - mu
-	mean_delta_t = torch.t(mean_delta)
-	res = -0.5 * torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + -0.5 * torch.matmul(torch.matmul(mean_delta_t, inv_sig), mean_delta)
+	mean_delta = torch.squeeze(mean_delta)
+	#mean_delta_t = torch.t(mean_delta)
+	# res = torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + torch.matmul(torch.matmul(mean_delta_t, inv_sig), mean_delta)
+	res = torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + vector_norm(mean_delta, dim=-1)# (torch.matmul(mean_delta_t, mean_delta) / sigma)
 
 	if use_gpu:
 		return res.cuda()
 	else:
 		return res
 
-def kl_loss_mvn(mu_1, sigma_1, mu_2, sigma_2):
-	det_sig_1 = torch.linalg.det(sigma_1)
-	det_sig_2 = torch.linalg.det(sigma_2)
-	inv_sig_2 = torch.clamp(torch.linalg.inv(sigma_2), 1e-6, 1e6)
-	d = sigma_2.shape[-1]
+def kl_loss_mvn(mu_1, mu_2, sigma_1=1.0, sigma_2=1.0, sig_size=34.0):
+	det_sig_1 = torch.tensor(sigma_1**sig_size) # torch.linalg.det(sigma_1)
+	det_sig_2 = torch.tensor(sigma_2**sig_size) # torch.linalg.det(sigma_2)
+	# inv_sig_2 = torch.clamp(torch.linalg.inv(sigma_2), 1e-6, 1e6)
+	# d = sigma_2.shape[-1]
 	mu_diff = mu_1 - mu_2
-	mu_diff_t = torch.t(mu_diff)
-	res = 0.5 * (torch.log(det_sig_1 / det_sig_2) + torch.trace(torch.matmul(inv_sig_2, sigma_1)) + torch.matmul(torch.matmul(mu_diff_t, inv_sig_2), mu_diff) - d)
-	
+	mu_diff = torch.squeeze(mu_diff)
+	# mu_diff_t = torch.t(mu_diff)
+	# res = 0.5 * (torch.log(det_sig_1 / det_sig_2) + torch.trace(torch.matmul(inv_sig_2, sigma_1)) + torch.matmul(torch.matmul(mu_diff_t, inv_sig_2), mu_diff) - d)
+	# res = -(torch.log(det_sig_1 / det_sig_2) + (sigma_1*sig_size) / sigma_2 + (torch.matmul(mu_diff_t, mu_diff) / sigma_2) - sig_size)
+	res = -(torch.log(det_sig_1 / det_sig_2) + (sigma_1*sig_size) / sigma_2 + (vector_norm(mu_diff, dim=-1) / sigma_2) - sig_size)
+
 	if use_gpu:
 		return res.cuda()
 	else:
@@ -107,7 +116,7 @@ def add_noise(data, noise_type='bitflip', noise_prob=0.2):
 		return corrupted_data
 
 
-def compute_bernoulli_prior():
+def compute_normal_prior():
 	"""
 	Compute Bernoulli prior over the input data with p = 0.0
 	"""
@@ -116,6 +125,8 @@ def compute_bernoulli_prior():
 
 
 def compute_outer_loss(mu, gamma, target, prior, collision):
+
+
 	# # use binomial cross entropy as intra loss
 	# intra_criterion = BCELoss().to(device)
 
@@ -125,8 +136,12 @@ def compute_outer_loss(mu, gamma, target, prior, collision):
 	# intra_loss = intra_criterion(mu, target, use_gpu=use_gpu)
 	# inter_loss = inter_criterion(prior, mu, use_gpu=use_gpu)
 
-	intra_loss = binomial_cross_entropy_loss(mu, target)
-	inter_loss = kl_loss_bernoulli(prior, mu)
+
+	# intra_loss = binomial_cross_entropy_loss(mu, target)
+	# inter_loss = kl_loss_bernoulli(prior, mu)
+
+	intra_loss = mvn_squared_error_loss(mu, target)
+	inter_loss = kl_loss_mvn(prior, mu)
 
 	batch_size = target.size()[0]
 
@@ -189,7 +204,7 @@ def dynamic_nem_iterations(input_data, target_data, h_old, preds_old, gamma_old,
 
 	# compute Bernoulli prior of pixels
 	# convert to cuda tensor on GPU
-	prior = compute_bernoulli_prior()
+	prior = compute_normal_prior()
 
 	# ensure type coherence
 	input_data = input_data.to(device)
@@ -236,7 +251,7 @@ def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=Non
 
 
 	# compute Bernoulli prior of pixels
-	prior = compute_bernoulli_prior()
+	prior = compute_normal_prior()
 
 	# output
 	hidden_state = nem_model.init_state(dtype=torch.float32)
