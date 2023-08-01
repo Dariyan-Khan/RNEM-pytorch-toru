@@ -542,22 +542,6 @@ def create_rollout_plots(name, outputs, idx):
 
 ### Main functions
 
-class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path):
-        self.file_path = path
-        self.dataset = None
-        with h5py.File(self.file_path, 'r') as file:
-            self.dataset_len = len(file["dataset"])
-
-    def __getitem__(self, index):
-        if self.dataset is None:
-            self.dataset = h5py.File(self.file_path, 'r')["dataset"]
-        return self.dataset[index]
-
-    def __len__(self):
-        return self.dataset_len
-
-
 def rollout_from_file():
 	# set up input data
 	attribute_list = ('features', 'groups')
