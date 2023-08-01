@@ -86,8 +86,8 @@ class Data(Dataset):
 		# return self.limit // self.batch_size - 1 .  #Not sure about  this why is this fixed to 5800
 
 
-		print(f"limit: {self.limit}")
-		print(f"batch size: {self.batch_size}")
+		# print(f"limit: {self.limit}")
+		# print(f"batch size: {self.batch_size}")
 
 		#assert False
 		#return 5800

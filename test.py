@@ -88,7 +88,7 @@ def examine_pkl():
 
 
 def change_data_in_pickle():
-	with open('train_obs_10.pickle', 'rb') as file:
+	with open('train_obs_200.pickle', 'rb') as file:
 		loaded_data = pickle.load(file)
 		new_loaded_data = np.array(loaded_data)
 		new_loaded_data = torch.from_numpy(new_loaded_data)
@@ -97,24 +97,24 @@ def change_data_in_pickle():
 		new_loaded_data = new_loaded_data[:, :, :, None, None]
 		file.close()
 
-	with open('torch_train_obs_10.pickle', 'wb') as file:
+	with open('torch_train_obs_200.pickle', 'wb') as file:
 
 		pickle.dump(new_loaded_data, file)
 
 
 def create_h5_files():
-	with open('torch_train_obs_10.pickle', 'rb') as file:
-		data_10 = pickle.load(file)
+	with open('torch_train_obs_200.pickle', 'rb') as file:
+		data_200 = pickle.load(file)
 
-		hf = h5py.File('torch_train_obs_10.h5', 'w')
+		hf = h5py.File('torch_train_obs_200.h5', 'w')
 
 		g_train = hf.create_group('training')
-		g_train.create_dataset('features', data=data_10[:, :5])
-		g_train.create_dataset('groups', data=data_10[:, :5])
+		g_train.create_dataset('features', data=data_200[:, :5])
+		g_train.create_dataset('groups', data=data_200[:, :5])
 
 		g_test = hf.create_group('validation')
-		g_test.create_dataset('features', data=data_10[:, 5:])
-		g_test.create_dataset('groups', data=data_10[:, 5:])
+		g_test.create_dataset('features', data=data_200[:, 5:])
+		g_test.create_dataset('groups', data=data_200[:, 5:])
 
 		hf.close()
 
@@ -148,12 +148,12 @@ if __name__ == "__main__":
 	
 	# examine_pkl()
 
-	# change_data_in_pickle()
+	change_data_in_pickle()
 
 	# check_h5_file()
 
-	# create_h5_files()
+	create_h5_files()
 	
-	check_vanilla_rnn()
+
 	pass
 	

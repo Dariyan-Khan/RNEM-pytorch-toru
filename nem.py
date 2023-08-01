@@ -78,9 +78,9 @@ class NEM(nn.Module):
 
 		:return: deltas (B, K, W, H, C)
 		"""
-		print(f"dataaa: {data.shape}")
+		# print(f"dataaa: {data.shape}")
 
-		print(f"predictionssssss: {predictions.shape}")
+		# print(f"predictionssssss: {predictions.shape}")
 
 		return data - predictions
 
@@ -105,18 +105,18 @@ class NEM(nn.Module):
 		
 		
 
-		print(f"masked_deltas: {masked_deltas.shape}")
+		# print(f"masked_deltas: {masked_deltas.shape}")
 
-		print(f"h_old {h_old.shape}")
+		# print(f"h_old {h_old.shape}")
 
-		print(f"M: {M}")
+		# print(f"M: {M}")
 
 		
 		reshaped_masked_deltas = deepcopy(masked_deltas)
 
 		reshaped_masked_deltas = masked_deltas.view(batch_size * K, 1,  M) # Masked deltas get collapsed here, and then when passed hrough encoder they change shape
 
-		print(f"reshaped masked_deltas: {reshaped_masked_deltas.shape}")
+		# print(f"reshaped masked_deltas: {reshaped_masked_deltas.shape}")
 
 		# assert False
 
@@ -154,7 +154,7 @@ class NEM(nn.Module):
 		input_data, target_data = x
 		h_old, preds_old, gamma_old = state
 
-		print(f"inputttt_data: {input_data.shape}")
+		# print(f"inputttt_data: {input_data.shape}")
 
 
 		# compute differences between prediction and input
@@ -166,11 +166,11 @@ class NEM(nn.Module):
 
 		# at this point masked_delta is still 64x5x64x64x1
 
-		print(f"masked deltas shape: {masked_deltas.shape}") 
+		# print(f"masked deltas shape: {masked_deltas.shape}") 
 
 		# assert False   
 
-		print(f"h_old shape: {h_old.shape}") 
+		# print(f"h_old shape: {h_old.shape}") 
 
 		#assert False
 
@@ -178,7 +178,7 @@ class NEM(nn.Module):
 		preds, h_new = self.run_inner_rnn(masked_deltas, h_old)
 
 
-		print("Made it here!!!!!!!")
+		# print("Made it here!!!!!!!")
 		# assert False
 
 		# compute the new gammas

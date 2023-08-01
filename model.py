@@ -44,8 +44,8 @@ class InputWrapper(nn.Module):
 
 		x = x.permute(reshape_dim)
 
-		print(f"input size: {self.inp_size}")
-		print(f"output size: {self.fc_output_size}")
+		# print(f"input size: {self.inp_size}")
+		# print(f"output size: {self.fc_output_size}")
 
 		
 
@@ -73,7 +73,7 @@ class OutputWrapper(nn.Module):
 
 		self.fc_output_size = fc_output_size
 
-		print(f"input size: {input_size}")
+		# print(f"input size: {input_size}")
 
 		# assert False
 
@@ -354,9 +354,9 @@ class InnerRNN(nn.Module):
 
 	def forward(self, x, state):
 
-		print(f"({self.batch_size}, {self.k}, {self.hidden_size}, {self.input_size})")
+		# print(f"({self.batch_size}, {self.k}, {self.hidden_size}, {self.input_size})")
 
-		print(f"x shape: {x.shape}")
+		# print(f"x shape: {x.shape}")
 		#assert False 
 		x, state = self.encoder(x, state)
 		x, state = self.recurrent(x, state)
@@ -400,7 +400,7 @@ class VanillaRNN(nn.Module):
 		self.output_size = output_size
 		self.device = device
 
-		print(f"batch size: {batch_size}, k: {k}, input_size: {input_size}, hidden_size: {hidden_size}, num_layers: {num_layers}, output_size: {output_size}")
+		# print(f"batch size: {batch_size}, k: {k}, input_size: {input_size}, hidden_size: {hidden_size}, num_layers: {num_layers}, output_size: {output_size}")
 		
 		# self.lstm = nn.LSTM(self.input_size, hidden_size, num_layers=num_layers, batch_first=False)
 		self.rnn = nn.RNN(self.input_size, hidden_size, num_layers=num_layers, batch_first=True)
@@ -418,14 +418,14 @@ class VanillaRNN(nn.Module):
 	def forward(self, x, state):
 		#print(f"x shape: {x.shape}")
 		# x = last_2_squeeze(x)
-		print(f"x shape: {x.shape}")
-		print(f"state shape: {state.shape}")
+		# print(f"x shape: {x.shape}")
+		# print(f"state shape: {state.shape}")
 
 		output, out_state = self.rnn(x, state) # (input, hidden, and internal state)
 		out = self.fc_1(output)
 
-		print(f"out shape: {out.shape}")
-		print(f"out state shape: {out_state.shape}")
+		# print(f"out shape: {out.shape}")
+		# print(f"out state shape: {out_state.shape}")
 
 		# assert False
 		
