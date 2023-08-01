@@ -371,5 +371,62 @@ class InnerRNN(nn.Module):
 		return x_out, state_out
 
 
-# class VanillaRNN(nn.module):
 
+class ReshapeLayer(nn.Module):
+	def __init__(self, shape):
+		super(ReshapeLayer, self).__init__()
+		self.shape = shape
+
+	def forward(self, x):
+		return x.view(x.size(0), *self.shape)
+
+import torch
+
+def last_2_squeeze(x):
+	y = torch.squeeze(x, dim=(-1, -2))
+	return y
+
+
+class VanillaRNN(nn.Module):
+	
+	def __init__(self, batch_size, k, input_size, output_size, hidden_size, num_layers=1, device='cpu'):
+		super(VanillaRNN, self).__init__()
+
+		self.batch_size = batch_size
+		self.k = k
+		self.input_size = input_size[0]
+		self.hidden_size = hidden_size
+		self.num_layers = num_layers
+		self.output_size = output_size
+		self.device = device
+
+		print(f"batch size: {batch_size}, k: {k}, input_size: {input_size}, hidden_size: {hidden_size}, num_layers: {num_layers}, output_size: {output_size}")
+		
+		# self.lstm = nn.LSTM(self.input_size, hidden_size, num_layers=num_layers, batch_first=False)
+		self.rnn = nn.RNN(self.input_size, hidden_size, num_layers=num_layers, batch_first=True)
+		self.fc_1 = nn.Linear(hidden_size, output_size)
+	
+	def init_hidden(self):
+		# variable of size [num_layers*num_directions, b_sz, hidden_sz]
+		if self.device.type == 'cpu':
+			# return torch.autograd.Variable(torch.zeros(self.batch_size * self.k, self.hidden_size))
+			return torch.autograd.Variable(torch.zeros(self.num_layers, self.batch_size*self.k, self.hidden_size))
+		else:
+			# return torch.autograd.Variable(torch.zeros(self.batch_size * self.k, self.hidden_size)).cuda()
+			return torch.autograd.Variable(torch.zeros(self.num_layers, self.batch_size * self.k, self.hidden_size)).cuda()
+	
+	def forward(self, x, state):
+		#print(f"x shape: {x.shape}")
+		# x = last_2_squeeze(x)
+		print(f"x shape: {x.shape}")
+		print(f"state shape: {state.shape}")
+
+		output, out_state = self.rnn(x, state) # (input, hidden, and internal state)
+		out = self.fc_1(output)
+
+		print(f"out shape: {out.shape}")
+		print(f"out state shape: {out_state.shape}")
+
+		# assert False
+		
+		return out, out_state

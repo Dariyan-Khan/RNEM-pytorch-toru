@@ -4,16 +4,22 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from copy import deepcopy
 
-from model import InnerRNN
+from model import InnerRNN, VanillaRNN
 
 
 class NEM(nn.Module):
 	def __init__(self, batch_size, k, input_size, hidden_size, device='cpu'):
 		super(NEM, self).__init__()
 		self.device = device
-		self.inner_rnn = InnerRNN(batch_size=batch_size, k=k, input_size=input_size, hidden_size=hidden_size,
-		                          device=device).to(device)
+		# self.inner_rnn = InnerRNN(batch_size=batch_size, k=k, input_size=input_size, hidden_size=hidden_size,
+		#                           device=device).to(device)
+
+		# print(f"inp sizeee: {input_size}")
+
+
+		self.inner_rnn = VanillaRNN(batch_size=batch_size, k=k, input_size=input_size, output_size=input_size[0], hidden_size=hidden_size, device=device).to(device)
 
 		self.batch_size = batch_size
 		self.k = k
@@ -72,6 +78,10 @@ class NEM(nn.Module):
 
 		:return: deltas (B, K, W, H, C)
 		"""
+		print(f"dataaa: {data.shape}")
+
+		print(f"predictionssssss: {predictions.shape}")
+
 		return data - predictions
 
 	@staticmethod
@@ -102,8 +112,9 @@ class NEM(nn.Module):
 		print(f"M: {M}")
 
 		
+		reshaped_masked_deltas = deepcopy(masked_deltas)
 
-		reshaped_masked_deltas = masked_deltas.view(batch_size * K, M) # Masked deltas get collapsed here, and then when passed hrough encoder they change shape
+		reshaped_masked_deltas = masked_deltas.view(batch_size * K, 1,  M) # Masked deltas get collapsed here, and then when passed hrough encoder they change shape
 
 		print(f"reshaped masked_deltas: {reshaped_masked_deltas.shape}")
 
@@ -143,6 +154,9 @@ class NEM(nn.Module):
 		input_data, target_data = x
 		h_old, preds_old, gamma_old = state
 
+		print(f"inputttt_data: {input_data.shape}")
+
+
 		# compute differences between prediction and input
 		deltas = self.delta_predictions(preds_old, input_data)
 
@@ -162,6 +176,10 @@ class NEM(nn.Module):
 
 		# compute new predictions
 		preds, h_new = self.run_inner_rnn(masked_deltas, h_old)
+
+
+		print("Made it here!!!!!!!")
+		# assert False
 
 		# compute the new gammas
 		gamma = self.e_step(preds, target_data)

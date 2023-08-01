@@ -126,6 +126,16 @@ def check_h5_file():
 	print(hf["training"]["features"])
 
 
+def check_vanilla_rnn():
+	batch_size = 3
+	k = 5
+	input_size = 4
+	hidden_size = 250
+	output_size = 10
+
+	vrnn = model.VanillaRNN(batch_size, k, input_size, output_size, hidden_size)
+
+
 
 
 
@@ -144,6 +154,6 @@ if __name__ == "__main__":
 
 	# create_h5_files()
 	
-	
+	check_vanilla_rnn()
 	pass
 	

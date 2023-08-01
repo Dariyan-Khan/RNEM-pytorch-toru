@@ -233,6 +233,9 @@ def dynamic_nem_iterations(input_data, target_data, h_old, preds_old, gamma_old,
 
 
 def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=None, train=True):
+	print(f"input data shape: {input_data.shape}")
+
+
 	# compute Bernoulli prior of pixels
 	prior = compute_bernoulli_prior()
 
@@ -256,6 +259,9 @@ def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=Non
 	for t, loss_weight in enumerate(loss_step_weights):
 		# model should predict the next frame
 		inputs = (input_data[t], target_data[t + 1])
+
+		print(f"inputsss data shape: {inputs[0].shape}")
+
 
 		assert len(input_data[t]) == len(target_data[t + 1]), \
 			"Input data and target data must have the same shape"
