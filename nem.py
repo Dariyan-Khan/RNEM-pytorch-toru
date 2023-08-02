@@ -5,8 +5,18 @@ import numpy as np
 import torch
 import torch.nn as nn
 from copy import deepcopy
+from torch.linalg import vector_norm
 
 from model import InnerRNN, VanillaRNN
+
+def mvn_pdf(x, mu, sigma):
+		"""Multivariate pdf under the homoskedastic case"""
+		sig_size = x.shape[-1]
+		sf = (2*torch.pi)**(-sig_size / 2) * (sigma**sig_size)
+		delta_mu = x - mu
+		l2_delta_mu = vector_norm(delta_mu, dim=-1, keepdim=True) ** 2
+		exp_inner = -0.5 * l2_delta_mu / sigma
+		return sf * torch.exp(exp_inner)
 
 
 class NEM(nn.Module):
@@ -53,6 +63,10 @@ class NEM(nn.Module):
 
 		# initialize gamma, a weight given to pred, with Gaussian distribution
 		gamma_shape = [batch_size, K] + list(self.gamma_size)
+		# print(f"==>> gamma_shape: {gamma_shape}")
+
+
+
 		gamma = np.absolute(np.random.normal(size=gamma_shape))
 		gamma = torch.from_numpy(gamma.astype(np.float32))
 		gamma /= torch.sum(gamma, dim=1, keepdim=True)
@@ -94,6 +108,9 @@ class NEM(nn.Module):
 
 		:return: masked deltas (B, K, W, H, C)
 		"""
+
+		# print(f"==>> gamma.shape: {gamma.shape}")
+
 		with torch.no_grad():
 			return rnn_inputs * gamma
 
@@ -111,8 +128,6 @@ class NEM(nn.Module):
 
 		# print(f"M: {M}")
 
-		
-		reshaped_masked_deltas = deepcopy(masked_deltas)
 
 		reshaped_masked_deltas = masked_deltas.view(batch_size * K, 1,  M) # Masked deltas get collapsed here, and then when passed hrough encoder they change shape
 
@@ -123,8 +138,13 @@ class NEM(nn.Module):
 		preds, h_new = self.inner_rnn.forward(reshaped_masked_deltas, h_old)
 
 		return preds.view(d_size), h_new
+	
+	
 
-	def compute_em_probabilities(self, predictions, data, epsilon=1e-6):
+
+
+
+	def compute_berrnoulli_probabilities(self, predictions, data, sigma=1, epsilon=1e-6):
 		"""
 		Compute pixelwise loss of predictions (wrt. the data).
 
@@ -134,8 +154,31 @@ class NEM(nn.Module):
 		"""
 		loss = data * predictions + (1 - data) * (1 - predictions)
 
+
 		# sum loss over channels
 		loss = torch.sum(loss, 4, keepdim=True)
+
+		if epsilon > 0:
+			loss += epsilon
+		return loss
+	
+
+	def compute_em_probabilities(self, predictions, data, sigma = 1, epsilon=1e-6):
+		"""
+		Compute pixelwise loss of predictions (wrt. the data).
+
+		:param predictions: (B, K, W, H, C)
+		:param data: (B, 1, W, H, C)
+		:return: local loss (B, K, W, H, 1)
+		"""
+		
+		loss = mvn_pdf(data, predictions, sigma)
+		# print(f"==>> loss.shape: {loss.shape}")
+
+
+		# sum loss over channels
+		# if loss.shape[-1] != 1:
+		# 	loss = torch.sum(loss, 4, keepdim=True)
 
 		if epsilon > 0:
 			loss += epsilon
