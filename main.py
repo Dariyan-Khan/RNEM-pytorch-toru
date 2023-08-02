@@ -128,9 +128,8 @@ def compute_outer_loss(mu, gamma, target, prior, collision):
 	
 
 	intra_loss = binomial_cross_entropy_loss(mu, target)
-	print(f"==>> target.shape: {target.shape}")
-	print(f"==>> mu.shape: {mu.shape}")
-	assert False
+	# print(f"==>> target.shape: {target.shape}")
+	# print(f"==>> mu.shape: {mu.shape}")
 
 
 
