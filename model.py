@@ -384,27 +384,28 @@ import torch
 
 def last_2_squeeze(x):
 	y = torch.squeeze(x, dim=(-1, -2))
+	print(f"==>> y.shape: {y.shape}")
+	assert False
 	return y
 
 
 class VanillaRNN(nn.Module):
 	
-	def __init__(self, batch_size, k, input_size, output_size, hidden_size, num_layers=1, device='cpu'):
+	def __init__(self, batch_size, k, input_size, hidden_size, num_layers=1, device='cpu'):
 		super(VanillaRNN, self).__init__()
 
 		self.batch_size = batch_size
 		self.k = k
-		self.input_size = input_size[0]
+		self.input_size = input_size[-1]
 		self.hidden_size = hidden_size
 		self.num_layers = num_layers
-		self.output_size = output_size
 		self.device = device
 
 		# print(f"batch size: {batch_size}, k: {k}, input_size: {input_size}, hidden_size: {hidden_size}, num_layers: {num_layers}, output_size: {output_size}")
 		
 		# self.lstm = nn.LSTM(self.input_size, hidden_size, num_layers=num_layers, batch_first=False)
 		self.rnn = nn.RNN(self.input_size, hidden_size, num_layers=num_layers, batch_first=True)
-		self.fc_1 = nn.Linear(hidden_size, output_size)
+		self.fc_1 = nn.Linear(hidden_size, self.input_size)
 	
 	def init_hidden(self):
 		# variable of size [num_layers*num_directions, b_sz, hidden_sz]

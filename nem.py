@@ -19,7 +19,7 @@ class NEM(nn.Module):
 		# print(f"inp sizeee: {input_size}")
 
 
-		self.inner_rnn = VanillaRNN(batch_size=batch_size, k=k, input_size=input_size, output_size=input_size[0], hidden_size=hidden_size, device=device).to(device)
+		self.inner_rnn = VanillaRNN(batch_size=batch_size, k=k, input_size=input_size, hidden_size=hidden_size, device=device).to(device)
 
 		self.batch_size = batch_size
 		self.k = k
