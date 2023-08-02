@@ -255,7 +255,7 @@ class KLDivLossBernoulli(nn.Module):
 			return res
 		
 
-class MSELoss(nn.module):
+class MSELoss(nn.Module):
 	def __init__(self):
 		super(MSELoss, self).__init__()
 	
