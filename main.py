@@ -9,7 +9,10 @@ import torch.nn as nn
 import torch.utils.data
 from torch.utils.data import DataLoader, Subset
 from torch.linalg import vector_norm
-import h5py
+from torch.distributions.multivariate_normal import MultivariateNormal
+
+
+
 
 import utils
 from data import Data, collate
@@ -99,14 +102,21 @@ def add_noise(data, noise_type='bitflip', noise_prob=0.2):
 
 	shape of returned data: (B, K, W, H, C)
 	"""
+
+	# print(f"==>> data.shape: {data.shape}")
+
+	
+
 	if noise_type is None:
 		return data
 
 	else:
 		shape = data[0].size()
+		# print(f"==>> shape: {shape}")
 		corrupted_data = []
 
 		for i in range(len(data)):
+			# print(f"==>> len(data): {len(data)}")
 
 			if noise_type == 'bitflip':
 				noise_dist = dist.Bernoulli(probs=noise_prob)
@@ -120,6 +130,45 @@ def add_noise(data, noise_type='bitflip', noise_prob=0.2):
 
 		corrupted_data = torch.stack(corrupted_data)
 		# print(corrupted_data.size())
+
+		# print(f"==>> corrupted_data.shape: {corrupted_data.shape}")
+
+
+		return corrupted_data
+
+def add_mvn_noise(data, noise_type="mvn", sigma=0.25, noise_prob=0.2):
+	"""Given our data is multivariatte normal, we add noise similar to 
+	how it is done in the RTagger paper by just adding a vector from a 
+	MVN(0, sigma*I) distribution, but masked by bernoulli noise to help prevent
+	overcapacity"""
+
+	#	TxBxKxWxHxC
+
+	if noise_type == None:
+		return data
+	
+	elif noise_type != "mvn":
+		raise NotImplementedError("This noise type is not supported")
+	
+	else:
+		data_shape = data.shape
+		
+		num_channels = data.shape[-1]
+
+		noise_mean = torch.zeros(num_channels)
+		noise_covariance = sigma * torch.eye(num_channels)
+
+		multivariate_normal = MultivariateNormal(noise_mean, noise_covariance)
+
+		mvn_sample = multivariate_normal.sample(sample_shape=data_shape[:-1]).to(device)
+		# print(f"==>> mvn_sample: {mvn_sample}")
+
+		noise_dist = dist.Bernoulli(probs=noise_prob)
+		noise_mask = noise_dist.sample(data_shape[:-1] + (1,)).to(device)
+		# print(f"==>> noise_mask: {noise_mask}")
+
+		corrupted_data = data + (noise_mask * mvn_sample)
+		# print(f"==>> corrupted_data: {corrupted_data}")
 
 		return corrupted_data
 
@@ -402,7 +451,7 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 			if collisions is not None:
 				collisions = collisions.to(device)
 
-			features_corrupted = add_noise(features)   # (T, B, K, W, H, C)
+			features_corrupted = add_mvn_noise(features)   # (T, B, K, W, H, C)
 
 			# show_image(features[0].cpu(), 0, 0)
 			# show_image(features_corrupted[0].cpu(), 0, 0)
@@ -452,7 +501,7 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 				if collisions is not None:
 					collisions = collisions.to(device)
 
-				features_corrupted = add_noise(features)
+				features_corrupted = add_mvn_noise(features)
 
 				t1 = time.time()
 				out = nem_iterations(features_corrupted, features, nem_model, optimizer, train=False)
@@ -630,7 +679,7 @@ def rollout_from_file():
 			input = input.to(device)
 
 			# run forward process
-			input_corrupted = add_noise(input)
+			input_corrupted = add_mvn_noise(input)
 
 			loss, ub_loss, r_loss, r_ub_loss, theta, pred, gamma, other_losses, other_ub_losses, \
 			r_other_losses, r_other_ub_losses = dynamic_nem_iterations(input_data=input_corrupted,
