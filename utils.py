@@ -228,33 +228,6 @@ def show_image(t, b, k):
 	im.save("test_{}_{}.jpg".format(b, k), "JPEG")
 
 
-class BCELoss(nn.Module):
-	def __init__(self):
-		super(BCELoss, self).__init__()
-
-	def forward(self, y, t, use_gpu=False):
-		clipped_y = torch.clamp(y, 1e-6, 1. - 1.e-6)
-		res = -(t * torch.log(clipped_y) + (1. - t) * torch.log(1. - clipped_y))
-		if use_gpu:
-			return res.cuda()
-		else:
-			return res
-
-
-# compute KL(p1, p2)
-class KLDivLossBernoulli(nn.Module):
-	def __init__(self):
-		super(KLDivLossBernoulli, self).__init__()
-
-	def forward(self, p1, p2, use_gpu=False):
-		res = p1 * torch.log(torch.clamp(p1 / torch.clamp(p2, 1e-6, 1e6), 1e-6, 1e6)) + (1 - p1) * torch.log(
-			torch.clamp((1 - p1) / torch.clamp(1 - p2, 1e-6, 1e6), 1e-6, 1e6))
-		if use_gpu:
-			return res.cuda()
-		else:
-			return res
-		
-
 class MSELoss(nn.Module):
 	def __init__(self):
 		super(MSELoss, self).__init__()

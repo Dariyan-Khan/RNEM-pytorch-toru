@@ -22,11 +22,6 @@ class NEM(nn.Module):
 	def __init__(self, batch_size, k, input_size, hidden_size, device='cpu'):
 		super(NEM, self).__init__()
 		self.device = device
-		# self.inner_rnn = InnerRNN(batch_size=batch_size, k=k, input_size=input_size, hidden_size=hidden_size,
-		#                           device=device).to(device)
-
-		# print(f"inp sizeee: {input_size}")
-
 
 		self.inner_rnn = VanillaRNN(batch_size=batch_size, k=k, input_size=input_size, hidden_size=hidden_size, device=device).to(device)
 
@@ -62,10 +57,6 @@ class NEM(nn.Module):
 
 		# initialize gamma, a weight given to pred, with Gaussian distribution
 		gamma_shape = [batch_size, K] + list(self.gamma_size)
-		# print(f"==>> gamma_shape: {gamma_shape}")
-
-
-
 		gamma = np.absolute(np.random.normal(size=gamma_shape))
 		gamma = torch.from_numpy(gamma.astype(np.float32))
 		gamma /= torch.sum(gamma, dim=1, keepdim=True)
@@ -73,8 +64,6 @@ class NEM(nn.Module):
 		# init with all 1 if K = 1
 		if K == 1:
 			gamma = torch.ones_like(gamma)
-
-		# print("h, pred, gamma", h.size(), pred.size(), gamma.size())
 
 		h, pred, gamma = h.to(device), pred.to(device), gamma.to(device)
 		return h, pred, gamma
@@ -91,10 +80,6 @@ class NEM(nn.Module):
 
 		:return: deltas (B, K, W, H, C)
 		"""
-		# print(f"dataaa: {data.shape}")
-
-		# print(f"predictionssssss: {predictions.shape}")
-
 		return data - predictions
 
 	@staticmethod
@@ -107,8 +92,6 @@ class NEM(nn.Module):
 
 		:return: masked deltas (B, K, W, H, C)
 		"""
-
-		# print(f"==>> gamma.shape: {gamma.shape}")
 
 		with torch.no_grad():
 			return rnn_inputs * gamma
@@ -154,12 +137,6 @@ class NEM(nn.Module):
 		"""
 		
 		loss = mvn_pdf(data, predictions, sigma)
-		# print(f"==>> loss.shape: {loss.shape}")
-
-
-		# sum loss over channels
-		# if loss.shape[-1] != 1:
-		# 	loss = torch.sum(loss, 4, keepdim=True)
 
 		if epsilon > 0:
 			loss += epsilon
@@ -178,32 +155,14 @@ class NEM(nn.Module):
 		input_data, target_data = x
 		h_old, preds_old, gamma_old = state
 
-		# print(f"inputttt_data: {input_data.shape}")
-
-
 		# compute differences between prediction and input
 		deltas = self.delta_predictions(preds_old, input_data)
 
 		# mask with gamma
 		masked_deltas = self.mask_rnn_inputs(deltas, gamma_old)
 
-
-		# at this point masked_delta is still 64x5x64x64x1
-
-		# print(f"masked deltas shape: {masked_deltas.shape}") 
-
-		# assert False   
-
-		# print(f"h_old shape: {h_old.shape}") 
-
-		#assert False
-
 		# compute new predictions
 		preds, h_new = self.run_inner_rnn(masked_deltas, h_old)
-
-
-		# print("Made it here!!!!!!!")
-		# assert False
 
 		# compute the new gammas
 		gamma = self.e_step(preds, target_data)
