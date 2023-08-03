@@ -95,14 +95,12 @@ def add_mvn_noise(data, noise_type="mvn", sigma=0.25, noise_prob=0.2):
 		multivariate_normal = MultivariateNormal(noise_mean, noise_covariance)
 
 		mvn_sample = multivariate_normal.sample(sample_shape=data_shape[:-1]).to(device)
-		# print(f"==>> mvn_sample: {mvn_sample}")
+
 
 		noise_dist = dist.Bernoulli(probs=noise_prob)
 		noise_mask = noise_dist.sample(data_shape[:-1] + (1,)).to(device)
-		# print(f"==>> noise_mask: {noise_mask}")
 
 		corrupted_data = data + (noise_mask * mvn_sample)
-		# print(f"==>> corrupted_data: {corrupted_data}")
 
 		return corrupted_data
 
@@ -116,11 +114,6 @@ def compute_normal_prior():
 
 
 def compute_outer_loss(mu, gamma, target, prior, collision):
-	# print(f"==>> mu.shape: {mu.shape}")
-	# print(f"==>> target.shape: {target.shape}")
-	# assert False
-
-
 
 	# # use binomial cross entropy as intra loss
 	# intra_criterion = BCELoss().to(device)
@@ -403,7 +396,6 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 				gamma_list.append(gamma_means)
 	
 	gammas = torch.stack(gamma_list, dim=0)
-	print(f"==>> gammas.shape: {gammas.shape}")
 
 
 	# build log dict
