@@ -33,15 +33,13 @@ def mvn_squared_error_loss(mu, x, sigma=1.0, include_constant=False):
 	"""Loss function for multivatiate gaussian in the homoskedastic case"""
 
 	sig_size =  x.shape[-1]
-	det_sig =  torch.tensor(sigma**sig_size) #torch.linalg.det(sigma)
+	det_sig =  torch.tensor(sigma**sig_size)
 
-	#inv_sig = torch.clamp(torch.linalg.inv(sigma), 1e-6, 1e6)
 	mean_delta = x - mu
 	mean_delta = torch.squeeze(mean_delta)
 	l2_mu_diff = vector_norm(mean_delta, dim=-1)**2
-	#mean_delta_t = torch.t(mean_delta)
-	# res = torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + torch.matmul(torch.matmul(mean_delta_t, inv_sig), mean_delta)
-	res = (include_constant * -sig_size * torch.log(torch.tensor(2 * torch.pi))) + torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + l2_mu_diff / sigma# (torch.matmul(mean_delta_t, mean_delta) / sigma)
+	
+	res = (include_constant * -sig_size * torch.log(torch.tensor(2 * torch.pi))) + torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + l2_mu_diff / sigma
 
 	if use_gpu:
 		return res.cuda()
@@ -51,17 +49,12 @@ def mvn_squared_error_loss(mu, x, sigma=1.0, include_constant=False):
 
 def kl_loss_mvn(mu_1, mu_2, sigma_1=1.0, sigma_2=1.0):
 	sig_size = mu_1.shape[-1]
-	det_sig_1 = torch.tensor(sigma_1**sig_size) # torch.linalg.det(sigma_1)
-	det_sig_2 = torch.tensor(sigma_2**sig_size) # torch.linalg.det(sigma_2)
-	# inv_sig_2 = torch.clamp(torch.linalg.inv(sigma_2), 1e-6, 1e6)
-	# d = sigma_2.shape[-1]
+	det_sig_1 = torch.tensor(sigma_1**sig_size)
+	det_sig_2 = torch.tensor(sigma_2**sig_size)
 	mu_diff = mu_1 - mu_2
 	mu_diff = torch.squeeze(mu_diff)
 	l2_mu_diff = vector_norm(mu_diff, dim=-1)**2
 
-	# mu_diff_t = torch.t(mu_diff)
-	# res = 0.5 * (torch.log(det_sig_1 / det_sig_2) + torch.trace(torch.matmul(inv_sig_2, sigma_1)) + torch.matmul(torch.matmul(mu_diff_t, inv_sig_2), mu_diff) - d)
-	# res = -(torch.log(det_sig_1 / det_sig_2) + (sigma_1*sig_size) / sigma_2 + (torch.matmul(mu_diff_t, mu_diff) / sigma_2) - sig_size)
 	res = -(torch.log(det_sig_1 / det_sig_2) + (sigma_1*sig_size) / sigma_2 + (l2_mu_diff / sigma_2) - sig_size)
 
 	if use_gpu:
