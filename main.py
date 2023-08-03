@@ -17,7 +17,6 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 import utils
 from data import Data, collate
 from nem import NEM
-# from utils import BCELoss, KLDivLoss, show_image
 from utils import MSELoss, KLDivLossNormal
 
 # Device configuration
@@ -28,27 +27,6 @@ args = None
 
 
 ### helper functions
-
-
-# log bci
-
-
-def binomial_cross_entropy_loss(y, t):
-	clipped_y = torch.clamp(y, 1e-6, 1. - 1.e-6)
-	res = -(t * torch.log(clipped_y) + (1. - t) * torch.log(1. - clipped_y))
-	if use_gpu:
-		return res.cuda()
-	else:
-		return res
-
-
-# compute KL(p1, p2)
-def kl_loss_bernoulli(p1, p2):
-	res = p1 * torch.log(torch.clamp(p1 / torch.clamp(p2, 1e-6, 1e6), 1e-6, 1e6)) + (1 - p1) * torch.log(torch.clamp((1-p1)/torch.clamp(1-p2, 1e-6, 1e6), 1e-6, 1e6))
-	if use_gpu:
-		return res.cuda()
-	else:
-		return res
 
 
 def mvn_squared_error_loss(mu, x, sigma=1.0, include_constant=False):
@@ -71,8 +49,6 @@ def mvn_squared_error_loss(mu, x, sigma=1.0, include_constant=False):
 		return res
 
 
-
-
 def kl_loss_mvn(mu_1, mu_2, sigma_1=1.0, sigma_2=1.0):
 	sig_size = mu_1.shape[-1]
 	det_sig_1 = torch.tensor(sigma_1**sig_size) # torch.linalg.det(sigma_1)
@@ -93,48 +69,6 @@ def kl_loss_mvn(mu_1, mu_2, sigma_1=1.0, sigma_2=1.0):
 	else:
 		return res
 
-
-
-def add_noise(data, noise_type='bitflip', noise_prob=0.2):
-	"""
-	Add noise to the input image to avoid trivial solutions
-	in case of overcapacity.
-
-	shape of returned data: (B, K, W, H, C)
-	"""
-
-	# print(f"==>> data.shape: {data.shape}")
-
-	
-
-	if noise_type is None:
-		return data
-
-	else:
-		shape = data[0].size()
-		# print(f"==>> shape: {shape}")
-		corrupted_data = []
-
-		for i in range(len(data)):
-			# print(f"==>> len(data): {len(data)}")
-
-			if noise_type == 'bitflip':
-				noise_dist = dist.Bernoulli(probs=noise_prob)
-				n = noise_dist.sample(shape).to(device)
-				corrupted = data[i] + n - 2 * data[i] * n  # hacky way of implementing (data XOR n)
-			else:
-				raise KeyError('Unknown noise_type "{}"'.format(noise_type))
-
-			corrupted.view(shape)
-			corrupted_data.append(corrupted)
-
-		corrupted_data = torch.stack(corrupted_data)
-		# print(corrupted_data.size())
-
-		# print(f"==>> corrupted_data.shape: {corrupted_data.shape}")
-
-
-		return corrupted_data
 
 def add_mvn_noise(data, noise_type="mvn", sigma=0.25, noise_prob=0.2):
 	"""Given our data is multivariatte normal, we add noise similar to 
@@ -197,10 +131,6 @@ def compute_outer_loss(mu, gamma, target, prior, collision):
 	# intra_loss = intra_criterion(mu, target, use_gpu=use_gpu)
 	# inter_loss = inter_criterion(prior, mu, use_gpu=use_gpu)
 
-
-	# intra_loss = binomial_cross_entropy_loss(mu, target)
-	# inter_loss = kl_loss_bernoulli(prior, mu)
-
 	intra_loss = mvn_squared_error_loss(mu, target)
 	inter_loss = kl_loss_mvn(prior, mu)
 
@@ -248,64 +178,6 @@ def compute_outer_ub_loss(pred, target, prior, collision):
 
 
 ### run epoch iterations
-
-
-def dynamic_nem_iterations(input_data, target_data, h_old, preds_old, gamma_old, nem_model, collisions=None):
-	# get input dimensions
-	input_shape = input_data.size()
-
-	# print("input data is of size", input_shape)
-
-	assert len(input_shape) == 5, "Requires 5D input (B, K, W, H, C)"
-	W, H, C = (x for x in input_shape[-3:])
-	assert (W, H, C) == nem_model.input_size, "Require NEM input size to be (W, H, C)"
-
-	# evaluation mode
-	nem_model.eval()
-
-	# compute Bernoulli prior of pixels
-	# convert to cuda tensor on GPU
-	prior = compute_normal_prior()
-
-	# ensure type coherence
-	input_data = input_data.to(device)
-	target_data = target_data.to(device)
-	h_old = h_old.to(device)
-	preds_old = preds_old.to(device)
-	gamma_old = gamma_old.to(device)
-
-	# compute inputs for dynamic iterations
-	inputs = (input_data, target_data)
-	hidden_state = (h_old, preds_old, gamma_old)
-
-	# run hidden network
-	hidden_state, output = nem_model.forward(inputs, hidden_state)
-	theta, pred, gamma = output
-
-	# set collision
-	collision = torch.zeros(1, 1, 1, 1, 1).to(device) if collisions is None else collisions
-
-	# compute NEM losses
-	total_loss, intra_loss, inter_loss, r_total_loss, r_intra_loss, r_inter_loss \
-		= compute_outer_loss(pred, gamma, target_data, prior, collision=collision)
-
-	# compute estimated loss upper bound (which doesn't use E-step)
-	total_ub_loss, intra_ub_loss, inter_ub_loss, r_total_ub_loss, r_intra_ub_loss, r_inter_ub_loss \
-		= compute_outer_ub_loss(pred, target_data, prior, collision=collision)
-
-	other_losses = torch.stack((total_loss, intra_loss, inter_loss))
-	other_ub_losses = torch.stack((total_ub_loss, intra_ub_loss, inter_ub_loss))
-
-	r_other_losses = torch.stack((r_total_loss, r_intra_loss, r_inter_loss))
-	r_other_ub_losses = torch.stack((r_total_ub_loss, r_intra_ub_loss, r_inter_ub_loss))
-
-	# delete used variables to save memory space
-	del input_data, target_data, h_old, preds_old, gamma_old
-	del intra_loss, inter_loss, r_intra_loss, r_inter_loss
-	del r_intra_ub_loss, r_inter_ub_loss, intra_ub_loss, inter_ub_loss
-
-	return total_loss, total_ub_loss, r_total_loss, r_total_ub_loss, theta, pred, gamma, other_losses, \
-		   other_ub_losses, r_other_losses, r_other_ub_losses
 
 
 def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=None, train=True):
@@ -597,219 +469,7 @@ def print_log_dict(log_dict, s_loss_weights, dt_s_loss_weights):
 		pass
 
 
-def create_rollout_plots(name, outputs, idx):
-	import matplotlib.pyplot as plt
-	scores, confidences = len(idx) * [0.0], len(idx) * [0.0]
-
-	# produce overview plot
-	for i, nr in enumerate(idx):
-		fig = utils.overview_plot(i, **outputs)
-		fig.suptitle(name + ', sample {},  AMI Score: {:.3f} ({:.3f}) '.format(nr, scores[i], confidences[i]))
-		fig.savefig(os.path.join(args.log_dir, name + '_{}.png'.format(nr)), bbox_inches='tight', pad_inches=0)
-		plt.close(fig)
-
-		utils.overview_gif(name, nr, args.nr_steps, args.rollout_steps, **outputs)
-
-
 ### Main functions
-
-def rollout_from_file():
-	# set up input data
-	attribute_list = ('features', 'groups')
-	nr_iters = args.nr_steps + args.rollout_steps + 1
-
-	# set up data
-	inputs = Data(args.data_name, "test", args.batch_size, nr_iters, attribute_list)
-	input_dataloader = DataLoader(dataset=inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
-
-
-
-	# get dimensions of data
-	input_shape = inputs.data["features"].shape
-	W, H, C = list(input_shape)[-3:]
-
-	# set up model
-	model = NEM(batch_size=args.batch_size,
-				k=args.k,
-				input_size=(W, H, C),
-				hidden_size=args.inner_hidden_size,
-				device=device).to(device)
-
-	# a model must be provided in order to rollout from file
-	assert args.saved_model != None and args.saved_model != "", "Please provide a pre-trained model"
-	saved_model_path = os.path.join(args.save_dir, args.saved_model)
-	assert os.path.isfile(saved_model_path), "Path to model does not exist"
-	model.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
-
-	# create empty lists to record losses
-	losses, ub_losses, r_losses, r_ub_losses, others, others_ub, r_others, r_others_ub = [], [], [], [], [], [], [], []
-
-	loss_step_weights = [1.0] * args.nr_steps
-	s_loss_weights = np.sum(loss_step_weights)
-	dt_s_loss_weights = np.sum(loss_step_weights[-args.dt:])
-
-	for b, data in enumerate(input_dataloader):
-		input_data = data[0]
-
-		# initialize RNN hidden state, prediction and gamma
-		theta = torch.zeros(args.batch_size * args.k, args.inner_hidden_size)
-		pred = torch.zeros(args.batch_size, args.k, W, H, C)  # (B, K, W, H, C)
-		gamma = np.abs(np.random.randn(args.batch_size, args.k, W, H, C))  # (B, K, W, H, 1)
-		gamma /= np.sum(gamma, axis=1, keepdims=True)
-		gamma = torch.from_numpy(gamma).float()
-
-		if args.k == 1:
-			gamma = torch.ones_like(gamma)
-
-		corrupted, scores, gammas, thetas, preds = [], [], [gamma], [theta], [pred]
-
-		# record losses
-		losses.append([])
-		ub_losses.append([])
-		r_losses.append([])
-		r_ub_losses.append([])
-		others.append([])
-		others_ub.append([])
-		r_others.append([])
-		r_others_ub.append([])
-
-		# run rollout steps
-		for t in range(nr_iters - 1):
-			if 'collisions' in input_data:
-				collisions = input_data['collisions'][t]
-			else:
-				collisions = None
-
-			# decide if the model is rolling out or using real data
-			if t < args.nr_steps:
-				# real data
-				input = input_data['features'][t]
-			else:
-				# rollout
-				input = torch.sum(gamma * pred, 1, keepdim=True)
-
-			input = input.to(device)
-
-			# run forward process
-			input_corrupted = add_mvn_noise(input, noise_type=None)
-
-			loss, ub_loss, r_loss, r_ub_loss, theta, pred, gamma, other_losses, other_ub_losses, \
-			r_other_losses, r_other_ub_losses = dynamic_nem_iterations(input_data=input_corrupted,
-																	   target_data=input_data['features'][t + 1],
-																	   gamma_old=gamma,
-																	   h_old=theta,
-																	   preds_old=pred,
-																	   nem_model=model,
-																	   collisions=collisions)
-
-			# re-compute gamma if rollout
-			if t >= args.nr_steps:
-				# torch.max returns two values, where the second value is argmax
-				truth, _ = torch.max(pred, 1, keepdim=True)
-
-				# avoid vanishing by scaling or sampling
-				ones = torch.ones_like(truth)
-				zeros = torch.zeros_like(truth)
-				truth = torch.where(truth > 0.1, truth, ones)
-				truth = torch.where(truth <= 0.1, truth, zeros)
-
-				# compute probs
-				probs = truth * pred + (1 - truth) * (1 - pred)
-
-				# add epsilon to probs in order to prevent 0 gamma
-				probs += 1e-6
-
-				# compute the new gamma (E-step) or set to one for k=1
-				gamma = probs / torch.sum(probs, 1, keepdim=True) if args.k > 1 else torch.ones_like(gamma)
-
-			corrupted.append(input_corrupted)
-			gammas.append(gamma)
-			thetas.append(theta)
-			preds.append(pred)
-
-			losses[-1].append(loss)
-			ub_losses[-1].append(ub_loss)
-			r_losses[-1].append(r_loss)
-			r_ub_losses[-1].append(r_ub_loss)
-			others[-1].append(other_losses)
-			others_ub[-1].append(other_ub_losses)
-			r_others[-1].append(r_other_losses)
-			r_others_ub[-1].append(r_other_ub_losses)
-
-			# delete used variables to save memory space
-			del input_corrupted
-			del loss, ub_loss, r_loss, r_ub_loss, other_losses, other_ub_losses, r_other_losses, r_other_ub_losses
-
-		# collect outputs for graph drawing
-		outputs = {
-			'inputs': input_data['features'],
-			'corrupted': torch.stack(corrupted),
-			'gammas': torch.stack(gammas),
-			'preds': torch.stack(preds),
-		}
-
-		if b == 0:
-			idx = [0, 1, 2]  # sample ids to generate plots
-			create_rollout_plots('rollout', outputs, idx)
-
-	# build log dict
-	log_dict = {
-		'loss': torch.mean(torch.stack(losses[-1])),
-		'ub_loss': torch.mean(torch.stack(ub_losses[-1])),
-		'r_loss': torch.mean(torch.stack(r_losses[-1])),
-		'r_ub_loss': torch.mean(torch.stack(r_ub_losses[-1])),
-		'others': np.mean(np.asarray(others), axis=0),
-		'others_ub': np.mean(np.asarray(others_ub), axis=0),
-		'r_others': np.mean(np.asarray(r_others), axis=0),
-		'r_others_ub': np.mean(np.asarray(r_others_ub), axis=0)
-	}
-
-	log_log_dict('rollout', log_dict)
-
-	print_log_dict(log_dict, s_loss_weights, dt_s_loss_weights)
-
-
-def run_from_file():
-	if use_gpu:
-		torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
-	attribute_list = ('features', 'groups')
-	nr_iters = args.nr_steps + 1
-
-	# set up input data
-	inputs = Data(args.data_name, "test", args.batch_size, nr_iters, attribute_list)
-	inputs_loader = DataLoader(dataset=inputs, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate)
-
-	# set up model
-	model = NEM(batch_size=args.batch_size,
-				k=args.k,
-				input_size=(64, 64, 1),
-				hidden_size=args.inner_hidden_size,
-				device=device).to(device)
-
-	# a model must be provided in order to run from file
-	assert args.saved_model != None and args.saved_model != "", "Please provide a pre-trained model"
-	saved_model_path = os.path.join(args.save_dir, args.saved_model)
-	assert os.path.isfile(saved_model_path), "Path to model does not exist"
-	model.load_state_dict(torch.load(saved_model_path))
-
-	# set up optimizer
-	optimizer = torch.optim.Adam(list(model.parameters()) + list(model.inner_rnn.parameters()), lr=args.lr)
-
-	# prepare weights for printing out logs
-	loss_step_weights = [1.0] * args.nr_steps
-	s_loss_weights = np.sum(loss_step_weights)
-	dt_s_loss_weights = np.sum(loss_step_weights[-args.dt:])
-
-	for epoch in range(1, args.max_epoch + 1):
-		# produce print-out
-		print("\n" + 50 * "%" + "    EPOCH {}   ".format(epoch) + 50 * "%")
-
-		log_dict = run_epoch(epoch, model, optimizer, inputs_loader, train=False)
-
-		log_log_dict('test', log_dict)
-		print("=" * 10, "Eval", "=" * 10)
-		print_log_dict(log_dict, s_loss_weights, dt_s_loss_weights)
 
 
 def run():
@@ -945,10 +605,6 @@ if __name__ == '__main__':
 
 	if args.usage == 'train':
 		run()
-	elif args.usage == 'eval':
-		run_from_file()
-	elif args.usage == 'rollout':
-		rollout_from_file()
 	else:
 		raise ValueError
 

@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from torch.linalg import vector_norm
 
-from model import InnerRNN, VanillaRNN
+from model import VanillaRNN
 
 def mvn_pdf(x, mu, sigma):
 		"""Multivariate pdf under the homoskedastic case"""
