@@ -7,13 +7,13 @@ import torch
 import torch.distributions as dist
 import torch.nn as nn
 import torch.utils.data
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torch.linalg import vector_norm
 from torch.distributions.multivariate_normal import MultivariateNormal
 import utils
 from data import Data, collate
 from nem import NEM
-from utils import MSELoss, KLDivLossNormal
+from utils import MSENormalLoss, KLDivLossNormal
 
 # Device configuration
 use_gpu = None
@@ -25,17 +25,17 @@ args = None
 ### helper functions
 
 
-def mvn_squared_error_loss(mu, x, sigma=1.0, include_constant=False):
+def mvn_squared_error_loss(mu, x, sigma_sq=1.0, include_constant=False):
 	"""Loss function for multivatiate gaussian in the homoskedastic case"""
 
 	sig_size =  x.shape[-1]
-	det_sig =  torch.tensor(sigma**sig_size)
+	det_cov =  torch.tensor(sigma_sq**sig_size)
 
 	mean_delta = x - mu
 	mean_delta = torch.squeeze(mean_delta)
 	l2_mu_diff = vector_norm(mean_delta, dim=-1)**2
 	
-	res = (include_constant * -sig_size * torch.log(torch.tensor(2 * torch.pi))) + torch.log(torch.clamp(det_sig, 1e-6, 1e6)) + l2_mu_diff / sigma
+	res = (include_constant * sig_size * torch.log(torch.tensor(torch.pi))) + (torch.log(torch.clamp(det_cov, 1e-6, 1e6)) / 2) + (l2_mu_diff / (2 * sigma_sq))
 
 	if use_gpu:
 		return res.cuda()
@@ -43,15 +43,15 @@ def mvn_squared_error_loss(mu, x, sigma=1.0, include_constant=False):
 		return res
 
 
-def kl_loss_mvn(mu_1, mu_2, sigma_1=1.0, sigma_2=1.0):
+def kl_loss_mvn(mu_1, mu_2, sigma_1_sq=1.0, sigma_2_sq=1.0):
 	sig_size = mu_1.shape[-1]
-	det_sig_1 = torch.tensor(sigma_1**sig_size)
-	det_sig_2 = torch.tensor(sigma_2**sig_size)
+	det_cov_1 = torch.tensor(sigma_1_sq**sig_size)
+	det_cov_2 = torch.tensor(sigma_2_sq**sig_size)
 	mu_diff = mu_1 - mu_2
 	mu_diff = torch.squeeze(mu_diff)
 	l2_mu_diff = vector_norm(mu_diff, dim=-1)**2
 
-	res = -(torch.log(det_sig_1 / det_sig_2) + (sigma_1*sig_size) / sigma_2 + (l2_mu_diff / sigma_2) - sig_size)
+	res = 0.5 * (torch.log(det_cov_1 / det_cov_2) + (sigma_1_sq*sig_size) / sigma_2_sq + (l2_mu_diff / sigma_2_sq) - sig_size)
 
 	if use_gpu:
 		return res.cuda()
@@ -137,7 +137,7 @@ def compute_outer_ub_loss(pred, target, prior, collision):
 	max_pred = torch.unsqueeze(max_pred, 1)
 
 	# use binomial cross entropy as intra loss
-	intra_criterion =  MSELoss().to(device) #BCELoss().to(device)
+	intra_criterion =  MSENormalLoss().to(device) #BCELoss().to(device)
 
 	# use KL divergence as inter loss
 	inter_criterion = KLDivLossNormal().to(device) # KLDivLoss().to(device)
@@ -205,9 +205,6 @@ def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=Non
 		total_loss, intra_loss, inter_loss, r_total_loss, r_intra_loss, r_inter_loss \
 			= compute_outer_loss(pred, gamma, target_data[t + 1], prior, collision=collision)
 		
-		print(f"==>> total_loss: {total_loss}")
-
-
 		# compute estimated loss upper bound (which doesn't use E-step)
 		total_ub_loss, intra_ub_loss, inter_ub_loss, r_total_ub_loss, r_intra_ub_loss, r_inter_ub_loss \
 			= compute_outer_ub_loss(pred, target_data[t + 1], prior, collision=collision) #where total ub loss is 
@@ -388,9 +385,6 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 				gamma_list.append(gamma_means)
 	
 	gammas = torch.stack(gamma_list, dim=0)
-
-	print(f"==>> losses: {losses}")
-
 	
 	# build log dict
 	log_dict = {
@@ -475,13 +469,6 @@ def run():
 	train_inputs = Data(args.data_name, "training", args.batch_size, nr_iters, attribute_list)
 	valid_inputs = Data(args.data_name, "validation", args.batch_size, nr_iters, attribute_list)
 
-	print(f"train shape: {train_inputs[0]['features'].shape}")
-
-	#print(len(train_inputs))
-
-	# if args.subset > 0:
-	# 	train_inputs = Subset(train_inputs, list(range(args.subset)))
-	# 	valid_inputs = Subset(valid_inputs, list(range(args.subset)))
 
 	train_dataloader = DataLoader(dataset=train_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
 	valid_dataloader = DataLoader(dataset=valid_inputs, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate)
