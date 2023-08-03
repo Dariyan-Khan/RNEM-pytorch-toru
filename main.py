@@ -10,10 +10,6 @@ import torch.utils.data
 from torch.utils.data import DataLoader, Subset
 from torch.linalg import vector_norm
 from torch.distributions.multivariate_normal import MultivariateNormal
-
-
-
-
 import utils
 from data import Data, collate
 from nem import NEM
@@ -167,7 +163,7 @@ def compute_outer_ub_loss(pred, target, prior, collision):
 
 
 def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=None, train=True):
-	# compute Bernoulli prior of pixels
+	# compute Normal prior of pixels
 	prior = compute_normal_prior()
 
 	# output
@@ -208,6 +204,9 @@ def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=Non
 		# compute NEM losses
 		total_loss, intra_loss, inter_loss, r_total_loss, r_intra_loss, r_inter_loss \
 			= compute_outer_loss(pred, gamma, target_data[t + 1], prior, collision=collision)
+		
+		print(f"==>> total_loss: {total_loss}")
+
 
 		# compute estimated loss upper bound (which doesn't use E-step)
 		total_ub_loss, intra_ub_loss, inter_ub_loss, r_total_ub_loss, r_intra_ub_loss, r_inter_ub_loss \
@@ -390,7 +389,9 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 	
 	gammas = torch.stack(gamma_list, dim=0)
 
+	print(f"==>> losses: {losses}")
 
+	
 	# build log dict
 	log_dict = {
 		'loss': float(np.mean(losses)),
