@@ -4,7 +4,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from copy import deepcopy
 from torch.linalg import vector_norm
 
 from model import InnerRNN, VanillaRNN
@@ -120,29 +119,11 @@ class NEM(nn.Module):
 		K = d_size[1]
 		M = torch.tensor(self.input_size).prod()
 		
-		
-
-		# print(f"masked_deltas: {masked_deltas.shape}")
-
-		# print(f"h_old {h_old.shape}")
-
-		# print(f"M: {M}")
-
-
 		reshaped_masked_deltas = masked_deltas.view(batch_size * K, 1,  M) # Masked deltas get collapsed here, and then when passed hrough encoder they change shape
-
-		# print(f"reshaped masked_deltas: {reshaped_masked_deltas.shape}")
-
-		# assert False
-
 		preds, h_new = self.inner_rnn.forward(reshaped_masked_deltas, h_old)
 
 		return preds.view(d_size), h_new
 	
-	
-
-
-
 
 	def compute_berrnoulli_probabilities(self, predictions, data, sigma=1, epsilon=1e-6):
 		"""

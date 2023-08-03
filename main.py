@@ -378,10 +378,11 @@ def nem_iterations(input_data, target_data, nem_model, optimizer, collisions=Non
 			print("Step [{}/{}], Loss: {:.4f}".format(t, args.nr_steps, total_loss))
 
 	# collect outputs
-	thetas, preds, gammas = zip(*outputs)
+	thetas, preds, gammas = zip(*outputs) # gammas is of shape TxBxKxWxHx1
 	thetas = torch.stack(thetas)
 	preds = torch.stack(preds)
 	gammas = torch.stack(gammas)
+
 
 	# # collect outputs for graph drawing
 	# outputs = {
@@ -429,7 +430,7 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 	others_ub = []
 	r_others = []
 	r_others_ub = []
-
+	gamma_list = []
 	if train:
 		# run through all data batches
 		for i, data in enumerate(dataloader):
@@ -451,7 +452,7 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 			if collisions is not None:
 				collisions = collisions.to(device)
 
-			features_corrupted = add_mvn_noise(features)   # (T, B, K, W, H, C)
+			features_corrupted = add_mvn_noise(features, noise_type=None)   # (T, B, K, W, H, C)
 
 			# show_image(features[0].cpu(), 0, 0)
 			# show_image(features_corrupted[0].cpu(), 0, 0)
@@ -475,6 +476,9 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 			# other relational losses (and upperbound)
 			r_others.append(out[6].data.cpu().numpy())
 			r_others_ub.append(out[7].data.cpu().numpy())
+
+			gamma_means = torch.mean(out[6], dim=0, keepdim=False)
+			gamma_list.append(gamma_means)
 
 			if epoch % args.log_per_iter == 0 and i % args.log_per_batch == 0:
 				print("Epoch [{}] Batch [{}], Loss: {:.4f}".format(epoch, i, losses[-1]))
@@ -501,7 +505,7 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 				if collisions is not None:
 					collisions = collisions.to(device)
 
-				features_corrupted = add_mvn_noise(features)
+				features_corrupted = add_mvn_noise(features, noise_type=None)
 
 				t1 = time.time()
 				out = nem_iterations(features_corrupted, features, nem_model, optimizer, train=False)
@@ -523,6 +527,13 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 				r_others.append(out[6].data.cpu().numpy())
 				r_others_ub.append(out[7].data.cpu().numpy())
 
+				gamma_means = torch.mean(out[6], dim=0, keepdim=False)
+				gamma_list.append(gamma_means)
+	
+	gammas = torch.stack(gamma_list, dim=0)
+	print(f"==>> gammas.shape: {gammas.shape}")
+
+
 	# build log dict
 	log_dict = {
 		'loss': float(np.mean(losses)),
@@ -532,7 +543,8 @@ def run_epoch(epoch, nem_model, optimizer, dataloader, train=True):
 		'others': np.mean(others, axis=0),
 		'others_ub': np.mean(others_ub, axis=0),
 		'r_others': np.mean(r_others, axis=0),
-		'r_others_ub': np.mean(r_others_ub, axis=0)
+		'r_others_ub': np.mean(r_others_ub, axis=0),
+		"gammas": gammas
 	}
 
 	return log_dict
@@ -679,7 +691,7 @@ def rollout_from_file():
 			input = input.to(device)
 
 			# run forward process
-			input_corrupted = add_mvn_noise(input)
+			input_corrupted = add_mvn_noise(input, noise_type=None)
 
 			loss, ub_loss, r_loss, r_ub_loss, theta, pred, gamma, other_losses, other_ub_losses, \
 			r_other_losses, r_other_ub_losses = dynamic_nem_iterations(input_data=input_corrupted,
